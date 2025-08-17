@@ -1,0 +1,11 @@
+# evitar levar arquivos pesados/irrelevantes
+nextfront/node_modules
+nextfront/.next
+.git
+.gitignore
+.vscode
+npm-debug.log*
+yarn-error.log*
+Dockerfile
+docker-compose*.yml
+.env

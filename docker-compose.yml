@@ -1,0 +1,25 @@
+services:
+  web:
+    build:
+      context: . # raiz (onde está o Dockerfile)
+      dockerfile: Dockerfile
+    working_dir: /app
+    command: >
+      sh -c "if [ ! -d node_modules ]; then npm install; fi &&
+             npx prisma generate &&
+             npm run dev -- -p 3000 -H 0.0.0.0"
+    volumes:
+      - ./nextfront:/app # acompanha edição do código (inclui /app/prisma)
+      - /app/node_modules # preserva node_modules da imagem
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: "file:./prisma/dev.db" # relativo a /app (ajuste se seu arquivo se chama DEV.DB)
+      JWT_SECRET: "dev-super-secret"
+      NEXT_PUBLIC_BASE_URL: "http://localhost:3000"
+      CHOKIDAR_USEPOLLING: "1"
+      CHOKIDAR_INTERVAL: "800"
+      WATCHPACK_POLLING: "true"
+      WATCHPACK_POLLING_INTERVAL: "800"
+    restart: unless-stopped
