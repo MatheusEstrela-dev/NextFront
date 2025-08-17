@@ -76,56 +76,226 @@ docker_menu() {
 # -----------------------------------------
 
 deps_menu() {
-    clear
-    echo -e "${c_fg_bright_green}==================================${c_reset}"
-    echo -e "     ${c_fg_bright_green}[2] VERIFICANDO DEPENDENCIAS${c_reset}"
-    echo -e "${c_fg_bright_green}==================================${c_reset}"
-    echo ""
+  clear
+  echo -e "${c_fg_bright_green}==================================${c_reset}"
+  echo -e "     ${c_fg_bright_green}[2] VERIFICANDO DEPENDÊNCIAS${c_reset}"
+  echo -e "${c_fg_bright_green}==================================${c_reset}"
+  echo ""
 
-    check_cmd() {
-        if command -v $1 &> /dev/null; then
-            echo -e "✔ $1 encontrado: $($1 --version 2>/dev/null | head -n 1)"
-        else
-            echo -e "✘ $1 NÃO encontrado. Instale antes de continuar."
-        fi
-    }
+  # === ajuste o caminho do app conforme seu repo ===
+  APP_DIR="${APP_DIR:-./nextfront}"
 
-    echo -e "${c_yellow}>> Verificando pacotes de sistema...${c_reset}"
-    check_cmd node
-    check_cmd npm
-    check_cmd docker
-    check_cmd docker-compose
-    check_cmd sqlite3
-    check_cmd npx
+  # ---------------- helpers ----------------
+  _ok()   { echo -e "✔ $1"; }
+  _warn() { echo -e "⚠ $1"; }
+  _err()  { echo -e "${c_fg_bright_red}✘ $1${c_reset}"; }
+  _sep()  { echo -e "${c_grey}---------------------------------------------${c_reset}"; }
 
-    echo -e "\n${c_yellow}>> Verificando pacotes do projeto (npm)...${c_reset}"
-    if [ -f "package.json" ]; then
-        REQUIRED_DEPS=("next" "@prisma/client" "prisma" "zod" "bcryptjs" "jose" "axios" "tailwindcss")
-        for dep in "${REQUIRED_DEPS[@]}"; do
-            if npm list $dep &> /dev/null; then
-                echo -e "✔ $dep instalado"
-            else
-                echo -e "✘ $dep não encontrado (execute: npm install $dep)"
-            fi
-        done
+  # compare versões (semver simples)
+  _ver_ge() { # usage: _ver_ge "20.0.0" "18.0.0"
+    [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+  }
+
+  # checar comando + versão mínima
+  _check_cmd_ver() { # cmd min_ver [version_flag]
+    local cmd="$1" min="$2" flag="${3:---version}"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      _err "$cmd não encontrado."
+      return 1
+    fi
+    local ver
+    ver="$($cmd $flag 2>/dev/null | head -n1 | grep -Eo '[0-9]+(\.[0-9]+){1,3}' | head -n1)"
+    if [ -z "$ver" ]; then
+      _warn "$cmd encontrado, mas não consegui detectar versão."
+      return 0
+    fi
+    if _ver_ge "$ver" "$min"; then
+      _ok "$cmd $ver (>= $min)"
+      return 0
     else
-        echo -e "⚠ Nenhum package.json encontrado no diretório atual."
+      _err "$cmd $ver (< $min). Atualize para >= $min."
+      return 1
+    fi
+  }
+
+  # porta livre?
+  _port_free() { # port
+    local p="$1"
+    if command -v ss >/dev/null 2>&1; then
+      ss -lnt 2>/dev/null | awk '{print $4}' | grep -q ":$p$"
+    elif command -v netstat >/dev/null 2>&1; then
+      netstat -an 2>/dev/null | grep -q "[\.:]$p[[:space:]]"
+    else
+      return 1
+    fi
+  }
+
+  # npm ls em depth=0 (no projeto)
+  _npm_has() { # pkg
+    ( cd "$APP_DIR" 2>/dev/null && npm ls --depth=0 "$1" >/dev/null 2>&1 )
+  }
+
+  # lints
+  _sep
+  echo -e "${c_yellow}>> Sistema (Host)${c_reset}"
+
+  _check_cmd_ver node "18.17.0"
+  _check_cmd_ver npm  "9.0.0"
+  _check_cmd_ver npx  "9.0.0"
+
+  # Docker & Compose (v2)
+  if command -v docker >/dev/null 2>&1; then
+    _check_cmd_ver docker "20.10.0"
+    if docker info >/dev/null 2>&1; then
+      _ok "Docker daemon em execução"
+    else
+      _err "Docker daemon NÃO está em execução"
     fi
 
-    echo -e "\n${c_yellow}>> Verificando migrações do Prisma...${c_reset}"
-    if [ -d "prisma" ]; then
-        if [ -f "prisma/schema.prisma" ]; then
-            echo -e "✔ Arquivo schema.prisma encontrado."
-        else
-            echo -e "✘ Arquivo schema.prisma não encontrado em ./prisma"
-        fi
+    if docker compose version >/dev/null 2>&1; then
+      local dc_ver
+      dc_ver="$(docker compose version 2>/dev/null | grep -Eo '[0-9]+(\.[0-9]+){1,3}' | head -n1)"
+      _ok "docker compose (plugin) ${dc_ver}"
+    elif command -v docker-compose >/dev/null 2>&1; then
+      _warn "Usando docker-compose (binário legado). Considere usar 'docker compose'."
+      _check_cmd_ver docker-compose "1.29.0"
     else
-        echo -e "✘ Pasta prisma/ não encontrada."
+      _err "Nem 'docker compose' nem 'docker-compose' encontrados."
+    fi
+  else
+    _err "docker não encontrado."
+  fi
+
+  # Portas
+  _sep
+  echo -e "${c_yellow}>> Portas${c_reset}"
+  if _port_free 3000; then
+    _err "Porta 3000 OCUPADA. Feche o processo que usa 3000 para rodar o Next."
+  else
+    _ok "Porta 3000 livre"
+  fi
+  if _port_free 5555; then
+    _warn "Porta 5555 OCUPADA (Prisma Studio pode não abrir)."
+  else
+    _ok "Porta 5555 livre"
+  fi
+
+  # Projeto
+  _sep
+  echo -e "${c_yellow}>> Projeto (${APP_DIR})${c_reset}"
+  if [ ! -d "$APP_DIR" ]; then
+    _err "Pasta ${APP_DIR} não encontrada. Ajuste APP_DIR no script."
+    press_enter_to_continue; return
+  fi
+
+  if [ -f "$APP_DIR/package.json" ]; then
+    _ok "package.json encontrado"
+  else
+    _err "package.json não encontrado em ${APP_DIR}"
+  fi
+
+  # Dependências essenciais do app
+  echo -e "\n${c_yellow}>> Dependências NPM (app)${c_reset}"
+  DEPS=("next" "react" "react-dom" "@prisma/client" "prisma" "bcryptjs" "jose" "framer-motion" "lucide-react" "tailwindcss")
+  for pkg in "${DEPS[@]}"; do
+    if _npm_has "$pkg"; then
+      _ok "$pkg instalado"
+    else
+      _err "$pkg AUSENTE (dica: cd ${APP_DIR} && npm i ${pkg})"
+    fi
+  done
+
+  # Prisma & DB
+  _sep
+  echo -e "${c_yellow}>> Prisma & Banco${c_reset}"
+  if [ -f "$APP_DIR/prisma/schema.prisma" ]; then
+    _ok "schema.prisma encontrado"
+    # provider e url
+    local provider url
+    provider="$(grep -E 'provider *= *"' "$APP_DIR/prisma/schema.prisma" 2>/dev/null | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')"
+    url="$(grep -E 'url *= *env\("DATABASE_URL"\)' "$APP_DIR/prisma/schema.prisma" >/dev/null 2>&1 && echo 'env(DATABASE_URL)' || echo '')"
+    [ -n "$provider" ] && _ok "provider: ${provider}"
+    [ -n "$url" ] && _ok 'url: env(DATABASE_URL)'
+
+    # .env
+    if [ -f "$APP_DIR/.env" ]; then
+      _ok ".env encontrado"
+      # DATABASE_URL presente?
+      if grep -q '^DATABASE_URL=' "$APP_DIR/.env"; then
+        local dbv
+        dbv="$(grep '^DATABASE_URL=' "$APP_DIR/.env" | tail -n1 | cut -d= -f2-)"
+        echo -e "• DATABASE_URL=${dbv}"
+        # se sqlite, verificar arquivo
+        if echo "$dbv" | grep -qi 'file:.*\.db'; then
+          local dbfile
+          dbfile="$(echo "$dbv" | sed -E 's/file:\.\/(.*)/\1/i')"
+          if [ -f "$APP_DIR/$dbfile" ]; then
+            _ok "Arquivo SQLite: ${APP_DIR}/${dbfile}"
+          else
+            _warn "Arquivo SQLite não encontrado em ${APP_DIR}/${dbfile} (rode: cd ${APP_DIR} && npx prisma migrate dev)"
+          fi
+        fi
+      else
+        _warn "DATABASE_URL não definido em ${APP_DIR}/.env"
+      fi
+
+      # JWT_SECRET
+      if grep -q '^JWT_SECRET=' "$APP_DIR/.env"; then
+        _ok "JWT_SECRET definido"
+      else
+        _warn "JWT_SECRET não definido em ${APP_DIR}/.env (usará default do código)"
+      fi
+    else
+      _warn ".env NÃO encontrado em ${APP_DIR}"
     fi
 
-    echo -e "\n${c_fg_bright_green}Verificação concluída.${c_reset}"
-    press_enter_to_continue
+    # prisma CLI
+    if command -v npx >/dev/null 2>&1; then
+      local pver
+      pver="$(cd "$APP_DIR" && npx prisma -v 2>/dev/null | tail -n1 | awk '{print $2}')"
+      [ -n "$pver" ] && _ok "Prisma CLI: ${pver}"
+    fi
+  else
+    _err "prisma/schema.prisma não encontrado em ${APP_DIR}"
+  fi
+
+  # Tailwind (v4 usa plugin postcss)
+  _sep
+  echo -e "${c_yellow}>> Tailwind/PostCSS${c_reset}"
+  if _npm_has "tailwindcss"; then
+    _ok "tailwindcss presente"
+  fi
+  if _npm_has "@tailwindcss/postcss"; then
+    _ok "@tailwindcss/postcss presente"
+  else
+    _warn "@tailwindcss/postcss ausente (v4 recomenda este plugin no PostCSS)"
+  fi
+  if _npm_has "postcss"; then
+    _ok "postcss presente"
+  fi
+
+  # Compose file
+  _sep
+  echo -e "${c_yellow}>> Docker Compose${c_reset}"
+  if [ -f "./docker-compose.yml" ] || [ -f "./compose.yml" ]; then
+    _ok "Arquivo compose encontrado"
+  else
+    _warn "compose.yml/docker-compose.yml NÃO encontrado na raiz"
+  fi
+
+  # Ações sugeridas
+  _sep
+  echo -e "${c_yellow}>> Ações sugeridas${c_reset}"
+  echo "• Para instalar deps do app:  cd ${APP_DIR} && npm install"
+  echo "• Gerar Prisma Client:        cd ${APP_DIR} && npx prisma generate"
+  echo "• Criar/migrar DB:            cd ${APP_DIR} && npx prisma migrate dev"
+  echo "• Abrir Prisma Studio:        cd ${APP_DIR} && npx prisma studio  (porta 5555)"
+  echo "• Subir dev (docker):         docker compose up -d && docker compose logs -f web"
+
+  echo -e "\n${c_fg_bright_green}Verificação concluída.${c_reset}"
+  press_enter_to_continue
 }
+
 
 
 
