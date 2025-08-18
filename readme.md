@@ -1,6 +1,4 @@
-# 🌐 NextFront-
-
-- Autenticação + Admin CRUD
+# 🌐 NextFront- Autenticação + Admin CRUD
 
 Este projeto é um **Frontend** desenvolvido em **Next.js 15**,
 utilizando **Prisma ORM** com banco **SQLite** (padrão, com ORM de estrutural de exemplo) e **Docker** para padronização de
@@ -59,6 +57,8 @@ Via Git Bash, dar permissao ao arquivo para ser executado
 chmod +x ./start.sh
 ```
 <img width="1014" height="513" alt="Terminal" src="https://github.com/user-attachments/assets/d80c2818-1fb9-410a-8854-7be3c4b82ffe" />
+<img width="1161" height="466" alt="Captura de tela 2025-08-17 161642" src="https://github.com/user-attachments/assets/8da41a14-338d-45ac-a84f-b166aa2c4b1f" />
+<img width="1240" height="517" alt="Captura de tela 2025-08-17 161531" src="https://github.com/user-attachments/assets/07b12149-9c80-4be0-b311-a0f534496273" />
 
 O app estará rodando em:\
 👉 <http://localhost:3000>
@@ -79,6 +79,12 @@ sendo necessario a intervensao manual (`requirements-node`)
 sao a  libs instaladas para o projeto rodar corretamentee
 ```
 <img width="568" height="225" alt="image" src="https://github.com/user-attachments/assets/e5cc923a-ac95-4329-b7d7-fb256f8398fe" />
+
+```sh
+> cd nextfront
+> npm install next react react-dom @prisma/client prisma bcryptjs jose framer-motion lucide-react tailwindcss
+> npm install -D @tailwindcss/postcss autoprefixer postcss typescript @types/node @types/react eslint eslint-config-next
+```
 
 ### 3.2 Rodar migrations + seed manual
 
