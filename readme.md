@@ -22,7 +22,7 @@ Login de demonstração:\
 | Banco de Dados   | Sqlite                  |
 | Autenticação JWT | (`jose`) + bcryptjs     |
 | Ambiente         | Docker + docker-compose |
-| Frontend         | Next.s 15 + Node        |
+| Frontend         | Next.s 15 + Typescript      |
 | Script de Setup  | ./start.sh              |
 
 ---
