@@ -74,8 +74,9 @@ O app estará rodando em:\
 ### 3.1 Erros de dependencia
 
 ```sh
-Por algum motivo, o terminal pode nao encontrar as dependias o package.json,/
-sendo necessario a intervensao manual (`requirements-node`), sao a  libs instaladas para o projeto rodar corretamentee
+Por algum motivo, o terminal pode nao encontrar as dependias o package.json,
+sendo necessario a intervensao manual (`requirements-node`)
+sao a  libs instaladas para o projeto rodar corretamentee
 ```
 <img width="568" height="225" alt="image" src="https://github.com/user-attachments/assets/e5cc923a-ac95-4329-b7d7-fb256f8398fe" />
 
@@ -99,6 +100,7 @@ sendo necessario a intervensao manual (`requirements-node`), sao a  libs instala
 <img width="1920" height="1032" alt="Captura de tela 2025-08-17 152647" src="https://github.com/user-attachments/assets/390e3d45-cb92-40d4-a84d-ac7bb469ff12" />
 <img width="1920" height="1032" alt="Captura de tela 2025-08-17 152718" src="https://github.com/user-attachments/assets/e2e3f375-143b-4c76-aa2b-36263d3fd609" />
 
+https://drive.google.com/open?id=1JAhQml4H1dlHx7ie8aw-YhjVOfoitzai&usp=drive_fs
 ---
 
 ## 📂 Estrutura Simplificada
