@@ -74,229 +74,177 @@ docker_menu() {
     press_enter_to_continue
 }
 # -----------------------------------------
-
 deps_menu() {
   clear
   echo -e "${c_fg_bright_green}==================================${c_reset}"
   echo -e "     ${c_fg_bright_green}[2] VERIFICANDO DEPENDÊNCIAS${c_reset}"
-  echo -e "${c_fg_bright_green}==================================${c_reset}"
-  echo ""
+  echo -e "${c_fg_bright_green}==================================${c_reset}\n"
 
-  # === ajuste o caminho do app conforme seu repo ===
+  # ===== ajuste: onde está o app =====
   APP_DIR="${APP_DIR:-./nextfront}"
 
-  # ---------------- helpers ----------------
-  _ok()   { echo -e "✔ $1"; }
-  _warn() { echo -e "⚠ $1"; }
-  _err()  { echo -e "${c_fg_bright_red}✘ $1${c_reset}"; }
-  _sep()  { echo -e "${c_grey}---------------------------------------------${c_reset}"; }
+  # ===== cores locais (se quiser trocar a paleta) =====
+  C1="\033[38;5;45m"    # azul-ciano
+  C2="\033[38;5;141m"   # roxo
+  C3="\033[38;5;214m"   # laranja
+  C4="\033[38;5;47m"    # verde
+  C5="\033[38;5;81m"    # azul claro
+  CERR="${c_fg_bright_red}"
+  OK="${c_fg_bright_green}"
+  WN="${c_yellow}"
+  NT="${c_grey}"
+  RS="\033[0m"
 
-  # compare versões (semver simples)
-  _ver_ge() { # usage: _ver_ge "20.0.0" "18.0.0"
-    [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
-  }
+  # ===== helpers =====
+  _ok()   { echo -e "  ${OK}✔${RS} $1"; }
+  _warn() { echo -e "  ${WN}⚠${RS} $1"; }
+  _err()  { echo -e "  ${CERR}✘ $1${RS}"; }
+  _sep()  { echo -e "${NT}------------------------------------------------${RS}"; }
+  _vge()  { [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]; } # >=
+  _title(){ local t="$1" c="$2"; echo -e "${c}╔════════════════════════════════════════════════╗${RS}\n${c}║ ${t}$(printf '%*s' $((46-${#t})) ' ') ║${RS}\n${c}╠════════════════════════════════════════════════╣${RS}"; }
+  _end()  { local c="$1"; echo -e "${c}╚════════════════════════════════════════════════╝${RS}\n"; }
 
-  # checar comando + versão mínima
-  _check_cmd_ver() { # cmd min_ver [version_flag]
+  # saída (para resumo/exit code)
+  FAIL=0; WARN=0
+  _mark_fail(){ FAIL=$((FAIL+1)); }
+  _mark_warn(){ WARN=$((WARN+1)); }
+
+  # detecta package manager
+  PKG="npm"
+  command -v pnpm >/dev/null 2>&1 && PKG="pnpm"
+  command -v yarn >/dev/null 2>&1 && PKG="yarn"
+
+  _check_cmd_ver(){ # cmd min [flag]
     local cmd="$1" min="$2" flag="${3:---version}"
-    if ! command -v "$cmd" >/dev/null 2>&1; then
-      _err "$cmd não encontrado."
-      return 1
-    fi
-    local ver
-    ver="$($cmd $flag 2>/dev/null | head -n1 | grep -Eo '[0-9]+(\.[0-9]+){1,3}' | head -n1)"
-    if [ -z "$ver" ]; then
-      _warn "$cmd encontrado, mas não consegui detectar versão."
-      return 0
-    fi
-    if _ver_ge "$ver" "$min"; then
-      _ok "$cmd $ver (>= $min)"
-      return 0
-    else
-      _err "$cmd $ver (< $min). Atualize para >= $min."
-      return 1
-    fi
+    if ! command -v "$cmd" >/dev/null 2>&1; then _err "$cmd não encontrado"; _mark_fail; return 1; fi
+    local v; v="$($cmd $flag 2>/dev/null | head -n1 | grep -Eo '[0-9]+(\.[0-9]+){1,3}' | head -n1)"
+    [ -z "$v" ] && { _warn "$cmd encontrado (versão não detectada)"; _mark_warn; return 0; }
+    if _vge "$v" "$min"; then _ok "$cmd $v (>= $min)"; else _err "$cmd $v (< $min). Atualize para >= $min"; _mark_fail; fi
   }
 
-  # porta livre?
-  _port_free() { # port
+  _port_busy(){ # returns 0 if busy
     local p="$1"
-    if command -v ss >/dev/null 2>&1; then
-      ss -lnt 2>/dev/null | awk '{print $4}' | grep -q ":$p$"
-    elif command -v netstat >/dev/null 2>&1; then
-      netstat -an 2>/dev/null | grep -q "[\.:]$p[[:space:]]"
-    else
-      return 1
-    fi
+    if command -v ss >/dev/null 2>&1; then ss -lnt 2>/dev/null | awk '{print $4}' | grep -q ":$p$"
+    elif command -v netstat >/dev/null 2>&1; then netstat -an 2>/dev/null | grep -q "[\.:]$p[[:space:]]"
+    else return 1; fi
   }
 
-  # npm ls em depth=0 (no projeto)
-  _npm_has() { # pkg
-    ( cd "$APP_DIR" 2>/dev/null && npm ls --depth=0 "$1" >/dev/null 2>&1 )
-  }
+  _has_pkg(){ (cd "$APP_DIR" 2>/dev/null && $PKG ls --depth=0 "$1" >/dev/null 2>&1); }
 
-  # lints
-  _sep
-  echo -e "${c_yellow}>> Sistema (Host)${c_reset}"
-
+  # ============== SISTEMA (HOST) ==============
+  _title "Sistema (Host)" "$C1"
   _check_cmd_ver node "18.17.0"
   _check_cmd_ver npm  "9.0.0"
-  _check_cmd_ver npx  "9.0.0"
-
-  # Docker & Compose (v2)
+  command -v npx >/dev/null 2>&1 || { _warn "npx não encontrado (vem com npm)"; _mark_warn; }
+  echo
   if command -v docker >/dev/null 2>&1; then
     _check_cmd_ver docker "20.10.0"
-    if docker info >/dev/null 2>&1; then
-      _ok "Docker daemon em execução"
-    else
-      _err "Docker daemon NÃO está em execução"
-    fi
-
+    if docker info >/dev/null 2>&1; then _ok "Docker daemon em execução"; else _err "Docker daemon NÃO está em execução"; _mark_fail; fi
     if docker compose version >/dev/null 2>&1; then
-      local dc_ver
-      dc_ver="$(docker compose version 2>/dev/null | grep -Eo '[0-9]+(\.[0-9]+){1,3}' | head -n1)"
-      _ok "docker compose (plugin) ${dc_ver}"
+      _ok "docker compose (plugin) $(docker compose version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)"
     elif command -v docker-compose >/dev/null 2>&1; then
-      _warn "Usando docker-compose (binário legado). Considere usar 'docker compose'."
+      _warn "Usando docker-compose legado. Prefira 'docker compose' (plugin)"; _mark_warn
       _check_cmd_ver docker-compose "1.29.0"
     else
-      _err "Nem 'docker compose' nem 'docker-compose' encontrados."
+      _warn "Compose não encontrado. Alguns comandos de Docker podem falhar"; _mark_warn
     fi
   else
-    _err "docker não encontrado."
+    _err "docker não encontrado"; _mark_fail
   fi
+  _end "$C1"
 
-  # Portas
-  _sep
-  echo -e "${c_yellow}>> Portas${c_reset}"
-  if _port_free 3000; then
-    _err "Porta 3000 OCUPADA. Feche o processo que usa 3000 para rodar o Next."
-  else
-    _ok "Porta 3000 livre"
-  fi
-  if _port_free 5555; then
-    _warn "Porta 5555 OCUPADA (Prisma Studio pode não abrir)."
-  else
-    _ok "Porta 5555 livre"
-  fi
+  # ============== PORTAS ==============
+  _title "Portas" "$C4"
+  if _port_busy 3000; then _warn "Porta 3000 OCUPADA"; _mark_warn; else _ok "Porta 3000 livre"; fi
+  if _port_busy 5555; then _warn "Porta 5555 OCUPADA (Prisma Studio)"; _mark_warn; else _ok "Porta 5555 livre"; fi
+  _end "$C4"
 
-  # Projeto
-  _sep
-  echo -e "${c_yellow}>> Projeto (${APP_DIR})${c_reset}"
-  if [ ! -d "$APP_DIR" ]; then
-    _err "Pasta ${APP_DIR} não encontrada. Ajuste APP_DIR no script."
-    press_enter_to_continue; return
-  fi
+  # ============== PROJETO ==============
+  _title "Projeto (${APP_DIR})" "$C2"
+  if [ ! -d "$APP_DIR" ]; then _err "Pasta ${APP_DIR} não encontrada (ajuste APP_DIR)"; _mark_fail; _end "$C2"; press_enter_to_continue; return; fi
+  [ -f "$APP_DIR/package.json" ] && _ok "package.json encontrado" || { _err "package.json ausente em ${APP_DIR}"; _mark_fail; }
+  _end "$C2"
 
-  if [ -f "$APP_DIR/package.json" ]; then
-    _ok "package.json encontrado"
-  else
-    _err "package.json não encontrado em ${APP_DIR}"
-  fi
-
-  # Dependências essenciais do app
-  echo -e "\n${c_yellow}>> Dependências NPM (app)${c_reset}"
-  DEPS=("next" "react" "react-dom" "@prisma/client" "prisma" "bcryptjs" "jose" "framer-motion" "lucide-react" "tailwindcss")
-  for pkg in "${DEPS[@]}"; do
-    if _npm_has "$pkg"; then
-      _ok "$pkg instalado"
-    else
-      _err "$pkg AUSENTE (dica: cd ${APP_DIR} && npm i ${pkg})"
-    fi
+  # ============== DEPENDÊNCIAS NPM ==============
+  _title "Dependências NPM (app)" "$C5"
+  DEPS=( next react react-dom @prisma/client prisma bcryptjs jose framer-motion lucide-react tailwindcss )
+  for d in "${DEPS[@]}"; do
+    if _has_pkg "$d"; then _ok "$d instalado"; else _err "$d AUSENTE (dica: cd ${APP_DIR} && $PKG add $d)"; _mark_fail; fi
   done
+  if [ -f "$APP_DIR/requirements-node.txt" ]; then
+    echo
+    _ok "requirements-node.txt encontrado — checando versões fixas:"
+    while IFS= read -r line; do
+      [[ "$line" =~ ^#|^$ ]] && continue
+      name="${line%@*}"; want="${line#*@}"
+      cur="$(node -e "try{p=require('./${APP_DIR#./}/package.json');v=(p.dependencies&&p.dependencies['$name'])||(p.devDependencies&&p.devDependencies['$name'])||'';console.log(String(v||''))}catch(e){console.log('')}" 2>/dev/null)"
+      cur="${cur#^}"; cur="${cur#~}"
+      if [ -z "$cur" ]; then _warn "$name não consta no package.json"; _mark_warn
+      elif [ "$cur" != "$want" ]; then _warn "$name versão $cur (desejado: $want)"; _mark_warn
+      else _ok "$name @$want (ok)"; fi
+    done < "$APP_DIR/requirements-node.txt"
+  else
+    echo; _warn "requirements-node.txt não encontrado (opcional para fixar versões)"; _mark_warn
+  fi
+  _end "$C5"
 
-  # Prisma & DB
-  _sep
-  echo -e "${c_yellow}>> Prisma & Banco${c_reset}"
+  # ============== PRISMA & BANCO ==============
+  _title "Prisma & Banco" "$C3"
   if [ -f "$APP_DIR/prisma/schema.prisma" ]; then
     _ok "schema.prisma encontrado"
-    # provider e url
-    local provider url
-    provider="$(grep -E 'provider *= *"' "$APP_DIR/prisma/schema.prisma" 2>/dev/null | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')"
-    url="$(grep -E 'url *= *env\("DATABASE_URL"\)' "$APP_DIR/prisma/schema.prisma" >/dev/null 2>&1 && echo 'env(DATABASE_URL)' || echo '')"
-    [ -n "$provider" ] && _ok "provider: ${provider}"
-    [ -n "$url" ] && _ok 'url: env(DATABASE_URL)'
-
-    # .env
-    if [ -f "$APP_DIR/.env" ]; then
-      _ok ".env encontrado"
-      # DATABASE_URL presente?
-      if grep -q '^DATABASE_URL=' "$APP_DIR/.env"; then
-        local dbv
-        dbv="$(grep '^DATABASE_URL=' "$APP_DIR/.env" | tail -n1 | cut -d= -f2-)"
-        echo -e "• DATABASE_URL=${dbv}"
-        # se sqlite, verificar arquivo
-        if echo "$dbv" | grep -qi 'file:.*\.db'; then
-          local dbfile
-          dbfile="$(echo "$dbv" | sed -E 's/file:\.\/(.*)/\1/i')"
-          if [ -f "$APP_DIR/$dbfile" ]; then
-            _ok "Arquivo SQLite: ${APP_DIR}/${dbfile}"
-          else
-            _warn "Arquivo SQLite não encontrado em ${APP_DIR}/${dbfile} (rode: cd ${APP_DIR} && npx prisma migrate dev)"
-          fi
-        fi
-      else
-        _warn "DATABASE_URL não definido em ${APP_DIR}/.env"
+    grep -q '^DATABASE_URL=' "$APP_DIR/.env" 2>/dev/null && {
+      _ok "DATABASE_URL definido em .env"
+      DBV="$(grep '^DATABASE_URL=' "$APP_DIR/.env" | tail -n1 | cut -d= -f2-)"
+      echo -e "  • ${NT}${DBV}${RS}"
+      if echo "$DBV" | grep -qi 'file:.*\.db'; then
+        DBFILE="$(echo "$DBV" | sed -E 's/^file:\.\/(.*)$/\1/I')"
+        [ -f "$APP_DIR/$DBFILE" ] && _ok "SQLite OK: ${APP_DIR}/${DBFILE}" || { _warn "Arquivo SQLite não existe ainda (rode: cd ${APP_DIR} && npx prisma migrate dev)"; _mark_warn; }
       fi
-
-      # JWT_SECRET
-      if grep -q '^JWT_SECRET=' "$APP_DIR/.env"; then
-        _ok "JWT_SECRET definido"
-      else
-        _warn "JWT_SECRET não definido em ${APP_DIR}/.env (usará default do código)"
-      fi
-    else
-      _warn ".env NÃO encontrado em ${APP_DIR}"
-    fi
-
-    # prisma CLI
+    } || { _warn "DATABASE_URL não definido no .env"; _mark_warn; }
+    for var in JWT_SECRET NEXT_PUBLIC_BASE_URL ADMIN_EMAIL ADMIN_PASSWORD; do
+      grep -q "^${var}=" "$APP_DIR/.env" 2>/dev/null && _ok "${var} definido" || _warn "${var} não definido no .env"
+    done
     if command -v npx >/dev/null 2>&1; then
-      local pver
-      pver="$(cd "$APP_DIR" && npx prisma -v 2>/dev/null | tail -n1 | awk '{print $2}')"
-      [ -n "$pver" ] && _ok "Prisma CLI: ${pver}"
+      PV="$(cd "$APP_DIR" && npx prisma -v 2>/dev/null | tail -n1 | awk '{print $2}')"
+      [ -n "$PV" ] && _ok "Prisma CLI: $PV"
+      echo -e "  ${NT}Se aparecer 'openssl-1.1.x' em Docker, adicione ao Dockerfile:${RS}"
+      echo -e "  ${NT}RUN apt-get update -y && apt-get install -y openssl${RS}"
     fi
   else
-    _err "prisma/schema.prisma não encontrado em ${APP_DIR}"
+    _err "prisma/schema.prisma não encontrado"; _mark_fail
   fi
+  _end "$C3"
 
-  # Tailwind (v4 usa plugin postcss)
-  _sep
-  echo -e "${c_yellow}>> Tailwind/PostCSS${c_reset}"
-  if _npm_has "tailwindcss"; then
-    _ok "tailwindcss presente"
-  fi
-  if _npm_has "@tailwindcss/postcss"; then
-    _ok "@tailwindcss/postcss presente"
-  else
-    _warn "@tailwindcss/postcss ausente (v4 recomenda este plugin no PostCSS)"
-  fi
-  if _npm_has "postcss"; then
-    _ok "postcss presente"
-  fi
+  # ============== DOCKER COMPOSE ==============
+  _title "Docker Compose" "$C1"
+  if [ -f "./docker-compose.yml" ] || [ -f "./compose.yml" ]; then _ok "Arquivo compose encontrado"; else _warn "compose.yml/docker-compose.yml NÃO encontrado (opcional)"; _mark_warn; fi
+  _end "$C1"
 
-  # Compose file
-  _sep
-  echo -e "${c_yellow}>> Docker Compose${c_reset}"
-  if [ -f "./docker-compose.yml" ] || [ -f "./compose.yml" ]; then
-    _ok "Arquivo compose encontrado"
-  else
-    _warn "compose.yml/docker-compose.yml NÃO encontrado na raiz"
-  fi
+  # ============== AÇÕES SUGERIDAS ==============
+  _title "Ações sugeridas" "$C4"
+  echo "  • Instalar deps:           cd ${APP_DIR} && $PKG install"
+  echo "  • Gerar Prisma Client:     cd ${APP_DIR} && npx prisma generate"
+  echo "  • Criar/migrar DB:         cd ${APP_DIR} && npx prisma migrate dev"
+  echo "  • Popular DB (seed):       cd ${APP_DIR} && $PKG run seed"
+  echo "  • Abrir Prisma Studio:     cd ${APP_DIR} && npx prisma studio  (porta 5555)"
+  echo "  • Subir dev (docker):      docker compose up -d && docker compose logs -f web"
+  _end "$C4"
 
-  # Ações sugeridas
-  _sep
-  echo -e "${c_yellow}>> Ações sugeridas${c_reset}"
-  echo "• Para instalar deps do app:  cd ${APP_DIR} && npm install"
-  echo "• Gerar Prisma Client:        cd ${APP_DIR} && npx prisma generate"
-  echo "• Criar/migrar DB:            cd ${APP_DIR} && npx prisma migrate dev"
-  echo "• Abrir Prisma Studio:        cd ${APP_DIR} && npx prisma studio  (porta 5555)"
-  echo "• Subir dev (docker):         docker compose up -d && docker compose logs -f web"
+  # ============== SUMÁRIO ==============
+  _title "Resumo" "$C5"
+  [ "$FAIL" -eq 0 ] && _ok "Nenhum erro crítico" || _err "$FAIL erro(s) crítico(s)"
+  [ "$WARN" -eq 0 ] && _ok "Nenhum aviso" || _warn "$WARN aviso(s)"
+  _end "$C5"
 
-  echo -e "\n${c_fg_bright_green}Verificação concluída.${c_reset}"
+  # exit code ajuda a CI/scripts
+  if [ "$FAIL" -gt 0 ]; then EXIT=1
+  elif [ "$WARN" -gt 0 ]; then EXIT=0
+  else EXIT=0; fi
+
+  echo -e "${OK}Verificação concluída.${RS}"
   press_enter_to_continue
+  return $EXIT
 }
-
-
 
 
 db_menu() {
