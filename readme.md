@@ -102,9 +102,10 @@ sao a  libs instaladas para o projeto rodar corretamentee
 
 
 ---
-```sh
- https://github.com/user-attachments/assets/0520917b-562e-4c32-9087-de0a021a6565
 
+## 🎨 Designer e Mockup 
+Processo criativo da interface pensando nas Funcionalidades / Requisitos funcionais e passivos
+```sh
 > https://drive.google.com/open?id=1JAhQml4H1dlHx7ie8aw-YhjVOfoitzai&usp=drive_fs
 ```
 
