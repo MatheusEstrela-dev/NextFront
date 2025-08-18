@@ -60,12 +60,22 @@ chmod +x ./start.sh
 ```
 <img width="1014" height="513" alt="Terminal" src="https://github.com/user-attachments/assets/d80c2818-1fb9-410a-8854-7be3c4b82ffe" />
 
-
-
 O app estará rodando em:\
 👉 <http://localhost:3000>
 
 👉 <http://localhost:5555>
+
+### 3. Inicializacao auto
+```sh
+> 1. Docker, inicializa os conatiners da aplicacao
+> 2. Dependencias , confere Node, Next.js etc *vide erros caso necessario
+> 3. Banco de dadaos, sobe o seed do Admin e usuarios de exemplo
+```
+### 3. Erros de dependencia
+
+```sh
+Por algum motivo, o terminal pode nao encontrar as dependias o package.json, sendo necessario a intervensao manual (`requirements-node`), sao a  libs instaladas para o projeto rodar corretamentee
+```
 
 ### 3. Rodar migrations + seed manual
 
