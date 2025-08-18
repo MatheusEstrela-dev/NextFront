@@ -109,6 +109,10 @@ sao a  libs instaladas para o projeto rodar corretamentee
 ```
 
 
+https://github.com/user-attachments/assets/2feec3ae-ed37-4f1e-85d8-4c73626357d2
+
+
+
 ## 📂 Estrutura Simplificada
 
     nextfront/
