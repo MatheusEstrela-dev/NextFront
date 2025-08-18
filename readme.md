@@ -52,22 +52,25 @@ git clone https://github.com/MatheusEstrela-dev/NextFront.git
 cd nextfront
 ```
 
-### 2. Subir containers
+### 2. Terminal ./start.sh
 
 ```sh
-docker compose up -d --build
+Via Git Bash, dar permissao ao arquivo para ser executado
+chmod +x ./start.sh
 ```
+<img width="1014" height="513" alt="Terminal" src="https://github.com/user-attachments/assets/d80c2818-1fb9-410a-8854-7be3c4b82ffe" />
+
+
 
 O app estará rodando em:\
 👉 <http://localhost:3000>
 
 👉 <http://localhost:5555>
 
-### 3. Rodar migrations + seed
+### 3. Rodar migrations + seed manual
 
 ```sh
-docker compose exec web sh -lc "npx prisma migrate dev"
-docker compose exec web sh -lc "npm run seed"
+> docker compose exec web sh -lc "npm run seed"
 ```
 
 ---
