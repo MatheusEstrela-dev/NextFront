@@ -100,8 +100,14 @@ sao a  libs instaladas para o projeto rodar corretamentee
 <img width="1920" height="1032" alt="Captura de tela 2025-08-17 152647" src="https://github.com/user-attachments/assets/390e3d45-cb92-40d4-a84d-ac7bb469ff12" />
 <img width="1920" height="1032" alt="Captura de tela 2025-08-17 152718" src="https://github.com/user-attachments/assets/e2e3f375-143b-4c76-aa2b-36263d3fd609" />
 
-https://drive.google.com/open?id=1JAhQml4H1dlHx7ie8aw-YhjVOfoitzai&usp=drive_fs
+
 ---
+```sh
+ https://github.com/user-attachments/assets/0520917b-562e-4c32-9087-de0a021a6565
+
+> https://drive.google.com/open?id=1JAhQml4H1dlHx7ie8aw-YhjVOfoitzai&usp=drive_fs
+```
+
 
 ## 📂 Estrutura Simplificada
 
