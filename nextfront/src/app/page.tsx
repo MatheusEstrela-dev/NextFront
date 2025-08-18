@@ -110,7 +110,7 @@ export default function HomePage() {
           return;
         }
 
-        // 🚀 Se admin → vai para /admin, senão → /home
+        // 🚀 Se admin → /admin, senão → /home
         if (data.role === "ADMIN") {
           window.location.href = "/admin";
         } else {
@@ -307,9 +307,7 @@ export default function HomePage() {
             )}
           </AnimatePresence>
 
-          {message && (
-            <p className="text-sm text-amber-300 pt-1">{message}</p>
-          )}
+          {message && <p className="text-sm text-amber-300 pt-1">{message}</p>}
 
           <button
             className="w-full mt-1 rounded-xl px-4 py-3 font-semibold bg-sky-600 hover:bg-sky-500 active:bg-sky-600 transition disabled:opacity-50 shadow-lg shadow-sky-900/30"
@@ -321,6 +319,28 @@ export default function HomePage() {
           </button>
         </form>
       </motion.div>
+
+      {/* footer */}
+      <footer className="absolute bottom-6 left-0 right-0 text-center text-xs md:text-sm text-white/60">
+        Desenvolvido por <strong>Matheus Estrela</strong> · 💻 TI & Inovação · 📍 Belo Horizonte – MG ·{" "}
+        <a
+          href="https://www.linkedin.com/in/matheus-estrela-32072a104/"
+          target="_blank"
+          rel="noreferrer"
+          className="text-sky-300 hover:text-sky-200 underline-offset-2 hover:underline"
+        >
+          LinkedIn
+        </a>{" "}
+        ·{" "}
+        <a
+          href="https://github.com/MatheusEstrela-dev"
+          target="_blank"
+          rel="noreferrer"
+          className="text-sky-300 hover:text-sky-200 underline-offset-2 hover:underline"
+        >
+          GitHub
+        </a>
+      </footer>
     </main>
   );
 }
